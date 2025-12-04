@@ -1,0 +1,60 @@
+/* Global Dark Theme with cyber-blue accents */
+QWidget {
+    background-color: #0f1320;
+    color: #d0d7ff;
+    font-family: "Segoe UI", "Inter", sans-serif;
+    font-size: 13px;
+}
+
+QListWidget#Sidebar {
+    background-color: #0b0e17;
+    border-right: 1px solid #1f2a44;
+}
+QListWidget::item {
+    padding: 10px;
+    margin: 6px;
+    border-radius: 8px;
+}
+QListWidget::item:selected {
+    background: #132041;
+    color: #9bd1ff;
+}
+
+QStackedWidget#MainStack {
+    background-color: #0f1320;
+}
+
+QPushButton {
+    background: #162240;
+    border: 1px solid #24365f;
+    padding: 8px 12px;
+    border-radius: 10px;
+}
+QPushButton:hover { background: #1a2950; }
+QPushButton:pressed { background: #0e1a38; }
+
+QLineEdit, QComboBox, QTextEdit, QSpinBox, QDoubleSpinBox {
+    background: #0b1020;
+    border: 1px solid #24365f;
+    border-radius: 8px;
+    padding: 6px;
+}
+
+QTableWidget {
+    gridline-color: #1f2a44;
+    background: #0b1020;
+    border: 1px solid #24365f;
+    border-radius: 10px;
+}
+QHeaderView::section {
+    background: #0b1020;
+    color: #9bd1ff;
+    padding: 6px;
+    border: 1px solid #24365f;
+}
+
+QLabel#PlaceholderLabel {
+    color: #7aa7d9;
+    font-size: 14px;
+}
+
