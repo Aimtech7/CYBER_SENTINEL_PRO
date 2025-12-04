@@ -1,12 +1,12 @@
 # Cyber Sentinel Pro
 
-A full-featured cybersecurity desktop application built in Python 3.10+ with PyQt6. It includes eight production-ready modules integrated into a unified interface with OpenAI API support.
+A full-featured cybersecurity desktop application built in Python 3.10+ with PyQt6. It includes production-ready modules integrated into a unified interface with OpenAI API support.
 
 ## Features
 
 - Modern dark cyber-themed UI with neon accents
 - Sidebar navigation and responsive layouts
-- 8 modules:
+- Modules:
   - WiFi Analyzer & Cracker (scan, monitor, handshake capture, deauth, wordlist cracking)
   - Packet Sniffer Dashboard (Scapy, protocol filters, hex/ASCII, charts, export)
   - Web Vulnerability Scanner (SQLi, XSS, dir brute-force, crawler, HTML/PDF reports, AI summary)
@@ -14,9 +14,12 @@ A full-featured cybersecurity desktop application built in Python 3.10+ with PyQ
   - SIEM Log Analyzer (regex heuristics, charts, AI summary)
   - Password Cracking Controller (Hashcat) with live output and export
   - Malware Analysis Sandbox (static analysis, IoCs, AI summary)
-  - Threat Intelligence Dashboard (VirusTotal, Shodan, AbuseIPDB)
+- Threat Intelligence Dashboard (VirusTotal, Shodan, AbuseIPDB, OTX; Safe Blocking)
+- AI Threat Assistant (chat, explain threats, summarize logs, analyze packets, risk, recommendations)
+- Automation Engine (SIEM monitoring, IP reputation, suspicious activity, file integrity, auto-sandbox, AI risk; background threads)
+- System Health Dashboard (CPU/RAM/Disk charts with AI commentary)
 - Non-blocking threads for long-running tasks
-- Settings page with encrypted OpenAI API key storage
+- Settings page with encrypted OpenAI API key storage and Dark Mode toggle
 
 ## Project Structure
 
@@ -85,8 +88,24 @@ python cyber_sentinel_pro/main.py
 
 ## OpenAI API Key
 
-- Open the Settings tab, paste your OpenAI API key (sk-...), and save.
-- The key is encrypted and stored locally in `~/.cyber_sentinel_pro/settings.json`.
+- Preferred: set `OPENAI_API_KEY` environment variable.
+- Or open the Settings tab, paste your OpenAI API key (sk-...), and save. The key is encrypted and stored locally in `~/.cyber_sentinel_pro/settings.json`.
+
+## Safe Blocking (Firewall)
+
+- From Threat Intelligence tab, use `Block IP`/`Unblock IP`.
+- Always prompts for confirmation before executing.
+- Windows uses `netsh advfirewall` and may require Administrator.
+- Linux attempts `ufw` or falls back to `iptables` and may require sudo.
+
+## Automation Engine
+
+- New tab `Automation Engine` exposes start/stop controls per task, status and live logs.
+- Settings are stored via app settings; configure paths/IPs in-app.
+
+## System Health
+
+- `System Health` tab shows live CPU/RAM/Disk trends and AI commentary.
 
 ## Notes on Capabilities
 
@@ -109,4 +128,3 @@ python cyber_sentinel_pro/main.py
 ## Disclaimer
 
 Use responsibly and legally. Ensure you have authorization for any scanning or testing performed.
-

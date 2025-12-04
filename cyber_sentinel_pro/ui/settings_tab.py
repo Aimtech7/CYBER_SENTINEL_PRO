@@ -71,9 +71,12 @@ class SettingsTab(QWidget):
         save_btn = QPushButton('Save Settings')
         test_btn = QPushButton('Test OpenAI')
         test_all_btn = QPushButton('Test All APIs')
+        self.dark_toggle = QCheckBox('Dark Mode')
+        self.dark_toggle.setChecked(load_setting('dark_mode', True))
         btns.addWidget(save_btn)
         btns.addWidget(test_btn)
         btns.addWidget(test_all_btn)
+        btns.addWidget(self.dark_toggle)
         root.addLayout(btns)
 
         self.status = QLabel('')
@@ -92,6 +95,7 @@ class SettingsTab(QWidget):
         save_setting('profile_name', self.profile_edit.text().strip())
         save_setting('honeypot_autostart', self.hp_autostart.isChecked())
         save_setting('honeypot_ports', self.hp_ports.text().strip() or '8080,2222,2323,4455')
+        save_setting('dark_mode', self.dark_toggle.isChecked())
         self.status.setText('Settings saved securely.')
 
     def test_openai(self):

@@ -10,6 +10,7 @@ STYLES_DIR = os.path.join(ASSETS_DIR, 'styles')
 
 # Lazy import of MainWindow to avoid circulars during packaging
 from ui.main_window import MainWindow
+from core.utils.secure_storage import load_setting
 
 
 def load_stylesheet():
@@ -24,10 +25,10 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName('Cyber Sentinel Pro')
     app.setOrganizationName('CyberSentinel')
-    # Apply global stylesheet
-    qss = load_stylesheet()
-    if qss:
-        app.setStyleSheet(qss)
+    if load_setting('dark_mode', True):
+        qss = load_stylesheet()
+        if qss:
+            app.setStyleSheet(qss)
 
     # Set a default window icon
     icon_path = os.path.join(ASSETS_DIR, 'icons', 'shield.svg')

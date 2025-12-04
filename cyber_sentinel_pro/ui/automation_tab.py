@@ -1,0 +1,78 @@
+from PyQt6.QtCore import QThread, pyqtSignal, QTimer
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QCheckBox, QLineEdit, QMessageBox
+from core.automation.engine import AutomationEngine
+from core.utils.secure_storage import load_setting, save_setting
+
+
+class AutomationTab(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.engine = AutomationEngine()
+        self._init_ui()
+
+    def _init_ui(self):
+        root = QVBoxLayout(self)
+        title = QLabel('Automation Engine')
+        title.setStyleSheet('font-size:18px; font-weight:bold; color:#9bd1ff')
+        root.addWidget(title)
+
+        self.tasks = {
+            'siem': self._task_row('SIEM Monitor'),
+            'iprep': self._task_row('IP Reputation'),
+            'suspip': self._task_row('Suspicious IP Detector'),
+            'fim': self._task_row('File Integrity Monitor'),
+            'sandbox': self._task_row('Auto Sandbox'),
+            'risk': self._task_row('AI Risk Scoring'),
+            'notify': self._task_row('Notifier'),
+        }
+        for k, row in self.tasks.items():
+            root.addLayout(row['layout'])
+
+        self.logs = QTextEdit(); self.logs.setReadOnly(True)
+        root.addWidget(self.logs)
+
+        self.timer = QTimer(self)
+        self.timer.setInterval(1200)
+        self.timer.timeout.connect(self.refresh_logs)
+        self.timer.start()
+
+    def _task_row(self, name: str):
+        h = QHBoxLayout()
+        lbl = QLabel(name)
+        start = QPushButton('Start')
+        stop = QPushButton('Stop')
+        status = QLabel('Stopped')
+        last = QLabel('Last: -')
+        h.addWidget(lbl)
+        h.addWidget(start)
+        h.addWidget(stop)
+        h.addWidget(status)
+        h.addWidget(last)
+        start.clicked.connect(lambda _, n=name: self._start(n))
+        stop.clicked.connect(lambda _, n=name: self._stop(n))
+        return {'layout': h, 'status': status, 'last': last, 'start': start, 'stop': stop, 'name': name}
+
+    def _key_from_name(self, name: str) -> str:
+        for k, v in self.tasks.items():
+            if v['name'] == name:
+                return k
+        return ''
+
+    def _start(self, name: str):
+        k = self._key_from_name(name)
+        self.engine.start(k)
+        self.tasks[k]['status'].setText('Running')
+
+    def _stop(self, name: str):
+        k = self._key_from_name(name)
+        self.engine.stop(k)
+        self.tasks[k]['status'].setText('Stopped')
+
+    def refresh_logs(self):
+        for k in self.tasks.keys():
+            logs = self.engine.logs(k)
+            if logs:
+                self.tasks[k]['last'].setText('Last: updated')
+                for s in logs:
+                    color = '#ff7676' if ('Error' in s or 'Anomalies' in s) else '#4db5ff'
+                    self.logs.append(f"<span style='color:{color}'>{k}: {s}</span>")

@@ -1,6 +1,7 @@
 from typing import Optional, Tuple
 import time
 
+import os
 from openai import OpenAI
 from .secure_storage import load_secret, load_setting
 
@@ -9,7 +10,7 @@ import time
 
 
 def get_client() -> Optional[OpenAI]:
-    api_key = load_secret('openai_api_key')
+    api_key = os.getenv('OPENAI_API_KEY') or load_secret('openai_api_key')
     if not api_key:
         return None
     try:

@@ -56,6 +56,8 @@ class MainWindow(QMainWindow):
             ('Web Scanner', 'web.svg'),
             ('Network Mapper', 'nmap.svg'),
             ('SIEM Analyzer', 'siem.svg'),
+            ('AI Threat Assistant', 'threat.svg'),
+            ('Automation Engine', 'siem.svg'),
             ('Hashcat Controller', 'hashcat.svg'),
             ('Malware Sandbox', 'malware.svg'),
             ('Honeypot', 'shield.svg'),
@@ -63,6 +65,7 @@ class MainWindow(QMainWindow):
             ('Endpoint Forensics', 'endpoint.svg'),
             ('Network Tools', 'tools.svg'),
             ('Report Builder', 'report.svg'),
+            ('System Health', 'siem.svg'),
             ('Scheduler', 'clock.svg'),
             ('FAQ', 'help.svg'),
             ('Settings', 'settings.svg'),
@@ -81,6 +84,8 @@ class MainWindow(QMainWindow):
             'Web Scanner': WebScanTab(),
             'Network Mapper': NmapTab(),
             'SIEM Analyzer': SIEMTab(),
+            'AI Threat Assistant': self._lazy_ai_tab(),
+            'Automation Engine': self._lazy_auto_tab(),
             'Hashcat Controller': self._placeholder('Hashcat Controller tab will load below...', HashcatTab=None),
             'Malware Sandbox': MalwareTab(),
             'Honeypot': HoneypotTab(),
@@ -88,6 +93,7 @@ class MainWindow(QMainWindow):
             'Endpoint Forensics': EndpointTab(),
             'Network Tools': NetworkToolsTab(),
             'Report Builder': ReportTab(),
+            'System Health': self._lazy_health_tab(),
             'Scheduler': SchedulerTab(),
             'FAQ': FAQTab(),
             'Settings': SettingsTab(),
@@ -128,4 +134,25 @@ class MainWindow(QMainWindow):
         lbl.setObjectName('PlaceholderLabel')
         v.addWidget(lbl)
         return w
+
+    def _lazy_ai_tab(self):
+        try:
+            from .ai_assistant_tab import AIAssistantTab
+            return AIAssistantTab()
+        except Exception as exc:
+            return self._placeholder(f'AI Assistant failed to load: {exc}')
+
+    def _lazy_auto_tab(self):
+        try:
+            from .automation_tab import AutomationTab
+            return AutomationTab()
+        except Exception as exc:
+            return self._placeholder(f'Automation failed to load: {exc}')
+
+    def _lazy_health_tab(self):
+        try:
+            from .health_tab import HealthTab
+            return HealthTab()
+        except Exception as exc:
+            return self._placeholder(f'Health tab failed to load: {exc}')
 

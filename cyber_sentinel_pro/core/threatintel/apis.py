@@ -65,3 +65,13 @@ def abuseipdb_ip(ip: str) -> Optional[Dict]:
     r = requests.get(url, params={'ipAddress': ip, 'maxAgeInDays': 90}, headers={'Key': key, 'Accept': 'application/json'}, timeout=20)
     return r.json()
 
+
+def otx_general(ioc_type: str, value: str) -> Optional[Dict]:
+    key = load_secret('otx_api_key')
+    headers = {'X-OTX-API-KEY': key} if key else {}
+    url = f'https://otx.alienvault.com/api/v1/indicators/{ioc_type}/{value}/general'
+    try:
+        r = requests.get(url, headers=headers, timeout=20)
+        return r.json()
+    except Exception:
+        return None
