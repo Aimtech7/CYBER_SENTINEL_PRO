@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
 )
 from core.webscan.webscanner import WebScanner
 from core.utils.ai_client import summarize
+from core.utils.attack_map import enrich_findings
 
 
 class WebScanWorker(QThread):
@@ -69,9 +70,12 @@ class WebScanTab(QWidget):
 
     def on_done(self, scanner: WebScanner):
         self.scanner = scanner
-        for f in scanner.findings:
+        enriched = enrich_findings(scanner.findings)
+        for f in enriched:
             self.output.append(f"{f['type']}: {f['url']} - {f['detail']}")
-        text = '\n'.join([f"{f['type']} {f['url']} {f['detail']}" for f in scanner.findings])
+            if f.get('mitre_technique'):
+                self.output.append(f"  MITRE: {f['mitre_technique']}")
+        text = '\n'.join([f"{f['type']} {f.get('mitre_technique','')} {f['url']} {f['detail']}" for f in enriched])
         ai = summarize('WebScan Report', text)
         if ai:
             self.output.append('\nAI Summary:\n' + ai)
@@ -95,4 +99,3 @@ class WebScanTab(QWidget):
         if path:
             self.scanner.export_pdf(path)
             self.output.append(f'PDF saved to {path}')
-

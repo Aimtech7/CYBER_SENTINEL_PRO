@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
 import pyqtgraph as pg
 from core.siem.analyzer import parse_lines
 from core.utils.ai_client import summarize
+from core.utils.attack_map import enrich_findings
 
 
 class SIEMTab(QWidget):
@@ -59,16 +60,19 @@ class SIEMTab(QWidget):
             return
         res = parse_lines(self.lines)
         self.table.setRowCount(0)
-        for f in res['findings']:
+        enriched = enrich_findings(res['findings'])
+        for f in enriched:
             i = self.table.rowCount(); self.table.insertRow(i)
             self.table.setItem(i, 0, QTableWidgetItem(f['type']))
             self.table.setItem(i, 1, QTableWidgetItem(f['detail']))
+            if f.get('mitre_technique'):
+                self.output.append(f"MITRE: {f['mitre_technique']} - {f['detail']}")
         xs = [int(k) for k in res['status_counts'].keys()]
         ys = list(res['status_counts'].values())
         self.chart.clear()
         bg = pg.BarGraphItem(x=xs, height=ys, width=5, brush=pg.mkBrush('#4db5ff'))
         self.chart.addItem(bg)
-        text = f"Auth failures: {res['auth_failures']}\nTop URIs: {res['top_uris']}\nFindings: {res['findings']}"
+        text = f"Auth failures: {res['auth_failures']}\nTop URIs: {res['top_uris']}\nFindings: {enriched}"
         ai = summarize('SIEM Analysis', text)
         if ai:
             self.output.append('AI Summary:\n' + ai)

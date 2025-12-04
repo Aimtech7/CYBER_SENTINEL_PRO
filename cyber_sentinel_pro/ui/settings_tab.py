@@ -89,12 +89,9 @@ class SettingsTab(QWidget):
         self.status.setText('Settings saved securely.')
 
     def test_openai(self):
-        from core.utils.ai_client import summarize
-        res = summarize('Test', 'This is a test of the OpenAI integration.')
-        if res:
-            self.status.setText('OpenAI test succeeded.')
-        else:
-            self.status.setText('OpenAI test failed. Check API key and network.')
+        from core.utils.ai_client import probe
+        ok, msg = probe()
+        self.status.setText(msg)
 
     def test_all(self):
         from core.threatintel.apis import vt_domain, shodan_ip, abuseipdb_ip

@@ -15,6 +15,7 @@ from .malware_tab import MalwareTab
 from .honeypot_tab import HoneypotTab
 from .threatintel_tab import ThreatIntelTab
 from .settings_tab import SettingsTab
+from .faq_tab import FAQTab
 
 
 class SidebarItem(QListWidgetItem):
@@ -55,6 +56,7 @@ class MainWindow(QMainWindow):
             ('Malware Sandbox', 'malware.svg'),
             ('Honeypot', 'shield.svg'),
             ('Threat Intelligence', 'threat.svg'),
+            ('FAQ', 'help.svg'),
             ('Settings', 'settings.svg'),
         ]
         for text, icon in items:
@@ -75,6 +77,7 @@ class MainWindow(QMainWindow):
             'Malware Sandbox': MalwareTab(),
             'Honeypot': HoneypotTab(),
             'Threat Intelligence': ThreatIntelTab(),
+            'FAQ': FAQTab(),
             'Settings': SettingsTab(),
         }
 
