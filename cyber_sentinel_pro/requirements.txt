@@ -13,3 +13,4 @@ typing-extensions>=4.7
 psutil>=5.9.8
 APScheduler>=3.10.4
 yara-python>=4.3.1
+speedtest-cli>=2.1.3

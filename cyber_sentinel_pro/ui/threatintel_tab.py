@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (
 )
 import pyqtgraph as pg
 from core.threatintel.apis import vt_ip, vt_domain, vt_url, vt_file, shodan_ip, abuseipdb_ip
+from core.feeds.feeds import otx_general
 from core.utils.ai_client import summarize
 
 
@@ -69,6 +70,18 @@ class ThreatIntelTab(QWidget):
             except Exception:
                 score = 0
 
+        # OTX enrichment
+        try:
+            if val.count('.') == 3 and all(x.isdigit() for x in val.split('.')):
+                res['otx'] = otx_general('IPv4', val)
+            elif val.startswith('http'):
+                res['otx'] = otx_general('URL', val)
+            elif len(val) in (32, 40, 64):
+                res['otx'] = otx_general('file', val)
+            else:
+                res['otx'] = otx_general('domain', val)
+        except Exception:
+            pass
         self.output.setText(str(res))
         self.chart.clear()
         bars = pg.BarGraphItem(x=[0, 1], height=[score, max(0, 100 - score)], width=0.8, brush=pg.mkBrush('#4db5ff'))
@@ -77,4 +90,3 @@ class ThreatIntelTab(QWidget):
         ai = summarize('Threat Intel Summary', text)
         if ai:
             self.output.append('\nAI Summary:\n' + ai)
-

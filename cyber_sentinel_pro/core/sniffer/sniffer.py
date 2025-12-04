@@ -3,10 +3,11 @@ from dataclasses import dataclass
 import time
 
 try:
-    from scapy.all import sniff, wrpcap, Packet
+    from scapy.all import sniff, wrpcap, rdpcap, Packet
 except Exception:
     sniff = None
     wrpcap = None
+    rdpcap = None
     Packet = object
 
 
@@ -91,3 +92,19 @@ class Sniffer:
     def stats(self):
         return self._records
 
+    def import_pcap(self, path: str):
+        if rdpcap is None:
+            raise RuntimeError('Scapy/rdpcap not available')
+        pkts = rdpcap(path)
+        for pkt in pkts:
+            raw = bytes(pkt)
+            cap = Captured(
+                ts=time.time(),
+                proto=self._proto(pkt),
+                src=self._src(pkt),
+                dst=self._dst(pkt),
+                length=len(raw),
+                raw=raw,
+            )
+            self._packets.append(pkt)
+            self._records.append(cap)

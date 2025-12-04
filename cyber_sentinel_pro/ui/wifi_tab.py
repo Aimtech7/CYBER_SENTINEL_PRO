@@ -1,10 +1,11 @@
 import os
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget,
     QTableWidgetItem, QLineEdit, QComboBox, QTextEdit, QFileDialog, QSpinBox
 )
-from core.wifi.wifi_controller import scan_networks, list_interfaces, has_aircrack_tools
+from core.wifi.wifi_controller import scan_networks, list_interfaces, has_aircrack_tools, get_interface_gateway
 from core.wifi import aircrack
 
 
@@ -51,9 +52,10 @@ class WifiTab(QWidget):
         top.addWidget(self.auto_btn)
         root.addLayout(top)
 
-        self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(['SSID', 'BSSID', 'Signal', 'Auth'])
+        self.table = QTableWidget(0, 6)
+        self.table.setHorizontalHeaderLabels(['SSID', 'BSSID', 'Signal', 'Auth', 'Cipher', 'Channel'])
         root.addWidget(self.table)
+        self.table.itemSelectionChanged.connect(self._on_select)
 
         controls = QHBoxLayout()
         self.mon_iface = QLineEdit()
@@ -73,12 +75,18 @@ class WifiTab(QWidget):
         self.deauth_btn = QPushButton('Deauth Attack')
         self.crack_btn = QPushButton('Crack (wordlist)')
         self.auto_crack_btn = QPushButton('Auto Crack Handshake')
+        self.crack_sel_btn = QPushButton('Crack Selected')
+        self.auto_crack_sel_btn = QPushButton('Auto Crack Selected')
+        self.copy_bssid_btn = QPushButton('Copy BSSID')
         actions.addWidget(self.start_mon_btn)
         actions.addWidget(self.stop_mon_btn)
         actions.addWidget(self.cap_btn)
         actions.addWidget(self.deauth_btn)
         actions.addWidget(self.crack_btn)
         actions.addWidget(self.auto_crack_btn)
+        actions.addWidget(self.crack_sel_btn)
+        actions.addWidget(self.auto_crack_sel_btn)
+        actions.addWidget(self.copy_bssid_btn)
         root.addLayout(actions)
 
         self.output = QTextEdit(); self.output.setReadOnly(True); self.output.setPlaceholderText('Live terminal output...')
@@ -89,8 +97,12 @@ class WifiTab(QWidget):
         cap_select = QPushButton('Select capture output file')
         wl_select = QPushButton('Select wordlist')
         bottom = QHBoxLayout()
+        self.gw_btn = QPushButton('Get Gateway')
+        self.gw_label = QLabel('Gateway: -')
         bottom.addWidget(cap_select)
         bottom.addWidget(wl_select)
+        bottom.addWidget(self.gw_btn)
+        bottom.addWidget(self.gw_label)
         root.addLayout(bottom)
 
         cap_select.clicked.connect(self.select_cap)
@@ -101,6 +113,10 @@ class WifiTab(QWidget):
         self.deauth_btn.clicked.connect(self.deauth)
         self.crack_btn.clicked.connect(self.crack)
         self.auto_crack_btn.clicked.connect(self.auto_crack)
+        self.crack_sel_btn.clicked.connect(self.crack_selected)
+        self.auto_crack_sel_btn.clicked.connect(self.auto_crack_selected)
+        self.copy_bssid_btn.clicked.connect(self.copy_bssid)
+        self.gw_btn.clicked.connect(self.get_gateway)
 
         if not has_aircrack_tools():
             self.output.append('Aircrack-ng tools not detected. Advanced features require Linux/WSL with aircrack-ng.')
@@ -118,6 +134,9 @@ class WifiTab(QWidget):
             self.table.setItem(r, 1, QTableWidgetItem(n.get('bssid') or ''))
             self.table.setItem(r, 2, QTableWidgetItem(str(n.get('signal'))))
             self.table.setItem(r, 3, QTableWidgetItem(str(n.get('auth'))))
+            self.table.setItem(r, 4, QTableWidgetItem(str(n.get('cipher'))))
+            ch = n.get('channel')
+            self.table.setItem(r, 5, QTableWidgetItem(str(ch if ch is not None else ''))) 
 
     def auto_scan_toggle(self, on: bool):
         if on:
@@ -140,6 +159,9 @@ class WifiTab(QWidget):
             self.table.setItem(r, 1, QTableWidgetItem(n.get('bssid') or ''))
             self.table.setItem(r, 2, QTableWidgetItem(str(n.get('signal'))))
             self.table.setItem(r, 3, QTableWidgetItem(str(n.get('auth'))))
+            self.table.setItem(r, 4, QTableWidgetItem(str(n.get('cipher'))))
+            ch = n.get('channel')
+            self.table.setItem(r, 5, QTableWidgetItem(str(ch if ch is not None else ''))) 
 
     def select_cap(self):
         path, _ = QFileDialog.getSaveFileName(self, 'Select capture output', os.path.expanduser('~'), 'Cap (*.cap);;Pcap (*.pcap)')
@@ -210,6 +232,53 @@ class WifiTab(QWidget):
         self.worker.line.connect(self.log)
         self.worker.done.connect(lambda c: self.log(f'Auto crack finished {c}'))
         self.worker.start()
+
+    def _on_select(self):
+        rows = self.table.selectionModel().selectedRows()
+        if not rows:
+            return
+        row = rows[0].row()
+        bssid = self.table.item(row, 1).text()
+        self.bssid_edit.setText(bssid)
+        try:
+            ch_item = self.table.item(row, 5)
+            if ch_item:
+                ch_txt = ch_item.text().strip()
+                if ch_txt:
+                    self.channel_spin.setValue(int(ch_txt))
+        except Exception:
+            pass
+
+    def crack_selected(self):
+        if not self.cap_path:
+            self.log('Select capture output file first.')
+            return
+        if not self.wordlist_path:
+            self.log('Select wordlist first.')
+            return
+        if not self.bssid_edit.text().strip():
+            self.log('Select a network row to populate BSSID.')
+            return
+        self.crack()
+
+    def auto_crack_selected(self):
+        if not self.bssid_edit.text().strip():
+            self.log('Select a network row to populate BSSID.')
+            return
+        self.auto_crack()
+
+    def copy_bssid(self):
+        bssid = self.bssid_edit.text().strip()
+        if not bssid:
+            self.log('No BSSID to copy. Select a row.')
+            return
+        QGuiApplication.clipboard().setText(bssid)
+        self.log('BSSID copied to clipboard.')
+
+    def get_gateway(self):
+        iface = self.iface_combo.currentText() if self.iface_combo.count() else None
+        gw = get_interface_gateway(iface)
+        self.gw_label.setText(f'Gateway: {gw or "-"}')
 
 class AutoScanWorker(QThread):
     result = pyqtSignal(list)

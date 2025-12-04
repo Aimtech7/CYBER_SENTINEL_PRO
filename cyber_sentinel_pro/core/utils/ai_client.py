@@ -1,7 +1,10 @@
 from typing import Optional, Tuple
+import time
 
 from openai import OpenAI
 from .secure_storage import load_secret, load_setting
+
+_CACHED_MODEL: Optional[str] = None
 import time
 
 
@@ -15,12 +18,50 @@ def get_client() -> Optional[OpenAI]:
         return None
 
 
+def _select_model(client: OpenAI) -> str:
+    global _CACHED_MODEL
+    if _CACHED_MODEL:
+        return _CACHED_MODEL
+    desired = (load_setting('openai_model', '') or '').strip()
+    if desired:
+        _CACHED_MODEL = desired
+        return _CACHED_MODEL
+    try:
+        resp = client.models.list()
+        names = [m.id for m in getattr(resp, 'data', [])]
+        priority = [
+            'gpt-4o-mini',
+            'gpt-4o',
+            'o3-mini',
+            'gpt-4.1-mini',
+            'gpt-3.5-turbo',
+        ]
+        for p in priority:
+            for n in names:
+                if n == p:
+                    _CACHED_MODEL = n
+                    return n
+        # heuristic fallbacks
+        for n in names:
+            if 'gpt-4o' in n and 'mini' in n:
+                _CACHED_MODEL = n
+                return n
+        for n in names:
+            if 'gpt-4o' in n:
+                _CACHED_MODEL = n
+                return n
+    except Exception:
+        pass
+    _CACHED_MODEL = 'gpt-4o-mini'
+    return _CACHED_MODEL
+
+
 def summarize(title: str, content: str, max_tokens: int = 400) -> Optional[str]:
     client = get_client()
     if not client:
         return None
     prompt = f"You are an expert cybersecurity analyst. Title: {title}. Analyze the following data and produce a concise security summary with key findings, risks, and recommendations.\n\n=== Data Start ===\n{content}\n=== Data End ==="
-    model = load_setting('openai_model', 'gpt-4o-mini')
+    model = _select_model(client)
     for attempt in range(3):
         try:
             resp = client.chat.completions.create(
@@ -42,7 +83,7 @@ def probe() -> Tuple[bool, str]:
     client = get_client()
     if not client:
         return False, 'No OpenAI API key saved.'
-    model = load_setting('openai_model', 'gpt-4o-mini')
+    model = _select_model(client)
     last_err = None
     for attempt in range(3):
         try:

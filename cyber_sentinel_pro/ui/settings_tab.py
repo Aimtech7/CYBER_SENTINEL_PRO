@@ -49,9 +49,14 @@ class SettingsTab(QWidget):
         form.addRow('AbuseIPDB Key', self.abuse_edit)
 
         self.model_edit = QLineEdit()
-        self.model_edit.setPlaceholderText('gpt-4o-mini')
-        self.model_edit.setText(load_setting('openai_model', 'gpt-4o-mini'))
-        form.addRow('OpenAI Model', self.model_edit)
+        self.model_edit.setPlaceholderText('Leave blank for auto-selection')
+        self.model_edit.setText(load_setting('openai_model', ''))
+        form.addRow('OpenAI Model (optional)', self.model_edit)
+
+        self.profile_edit = QLineEdit()
+        self.profile_edit.setPlaceholderText('Profile name (optional)')
+        self.profile_edit.setText(load_setting('profile_name', ''))
+        form.addRow('Profile Name', self.profile_edit)
 
         self.hp_autostart = QCheckBox()
         self.hp_autostart.setChecked(load_setting('honeypot_autostart', True))
@@ -83,7 +88,8 @@ class SettingsTab(QWidget):
         save_secret('virustotal_api_key', self.vt_edit.text().strip())
         save_secret('shodan_api_key', self.shodan_edit.text().strip())
         save_secret('abuseipdb_api_key', self.abuse_edit.text().strip())
-        save_setting('openai_model', self.model_edit.text().strip() or 'gpt-4o-mini')
+        save_setting('openai_model', self.model_edit.text().strip())
+        save_setting('profile_name', self.profile_edit.text().strip())
         save_setting('honeypot_autostart', self.hp_autostart.isChecked())
         save_setting('honeypot_ports', self.hp_ports.text().strip() or '8080,2222,2323,4455')
         self.status.setText('Settings saved securely.')

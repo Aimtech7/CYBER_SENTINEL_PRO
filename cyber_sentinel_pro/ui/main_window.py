@@ -16,6 +16,10 @@ from .honeypot_tab import HoneypotTab
 from .threatintel_tab import ThreatIntelTab
 from .settings_tab import SettingsTab
 from .faq_tab import FAQTab
+from .network_tools_tab import NetworkToolsTab
+from .endpoint_tab import EndpointTab
+from .report_tab import ReportTab
+from .scheduler_tab import SchedulerTab
 
 
 class SidebarItem(QListWidgetItem):
@@ -56,6 +60,10 @@ class MainWindow(QMainWindow):
             ('Malware Sandbox', 'malware.svg'),
             ('Honeypot', 'shield.svg'),
             ('Threat Intelligence', 'threat.svg'),
+            ('Endpoint Forensics', 'endpoint.svg'),
+            ('Network Tools', 'tools.svg'),
+            ('Report Builder', 'report.svg'),
+            ('Scheduler', 'clock.svg'),
             ('FAQ', 'help.svg'),
             ('Settings', 'settings.svg'),
         ]
@@ -77,6 +85,10 @@ class MainWindow(QMainWindow):
             'Malware Sandbox': MalwareTab(),
             'Honeypot': HoneypotTab(),
             'Threat Intelligence': ThreatIntelTab(),
+            'Endpoint Forensics': EndpointTab(),
+            'Network Tools': NetworkToolsTab(),
+            'Report Builder': ReportTab(),
+            'Scheduler': SchedulerTab(),
             'FAQ': FAQTab(),
             'Settings': SettingsTab(),
         }
