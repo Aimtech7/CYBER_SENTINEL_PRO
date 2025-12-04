@@ -64,8 +64,8 @@ class MainWindow(QMainWindow):
         stack = QStackedWidget()
         stack.setObjectName('MainStack')
 
-        # Tabs
-        self.tabs = {
+        # Tabs mapped by label
+        tab_map = {
             'WiFi Analyzer': WifiTab(),
             'Packet Sniffer': SnifferTab(),
             'Web Scanner': WebScanTab(),
@@ -73,22 +73,27 @@ class MainWindow(QMainWindow):
             'SIEM Analyzer': SIEMTab(),
             'Hashcat Controller': self._placeholder('Hashcat Controller tab will load below...', HashcatTab=None),
             'Malware Sandbox': MalwareTab(),
-            'Threat Intelligence': ThreatIntelTab(),
             'Honeypot': HoneypotTab(),
+            'Threat Intelligence': ThreatIntelTab(),
             'Settings': SettingsTab(),
         }
 
-        # The Hashcat tab is heavy and interacts with external binary; import lazily
+        # Lazy import Hashcat tab if available
         try:
             from .hashcat_tab import HashcatTab
-            self.tabs['Hashcat Controller'] = HashcatTab()
+            tab_map['Hashcat Controller'] = HashcatTab()
         except Exception as exc:
-            self.tabs['Hashcat Controller'] = self._placeholder(
+            tab_map['Hashcat Controller'] = self._placeholder(
                 f'Hashcat tab failed to load: {exc}\nInstall Hashcat and ensure PATH is set.'
             )
 
-        for _, tab in self.tabs.items():
-            stack.addWidget(tab)
+        # Add widgets to stack following sidebar order
+        self._tab_order = []
+        for text, _ in items:
+            w = tab_map.get(text)
+            if w is not None:
+                stack.addWidget(w)
+                self._tab_order.append(text)
 
         root.addWidget(sidebar)
         root.addWidget(stack, 1)

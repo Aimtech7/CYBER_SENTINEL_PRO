@@ -1,6 +1,7 @@
 from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QLineEdit
 from core.honeypot.honeypot import HoneypotManager
+from core.utils.secure_storage import load_setting
 
 
 class HoneypotWorker(QThread):
@@ -25,6 +26,7 @@ class HoneypotTab(QWidget):
         super().__init__()
         self._init_ui()
         self.worker = None
+        self._maybe_autostart()
 
     def _init_ui(self):
         root = QVBoxLayout(self)
@@ -63,3 +65,8 @@ class HoneypotTab(QWidget):
             self.worker.wait()
             self.output.append('Honeypot stopped')
 
+    def _maybe_autostart(self):
+        if load_setting('honeypot_autostart', True):
+            ports = load_setting('honeypot_ports', '8080,2222,2323,4455')
+            self.ports_edit.setText(ports)
+            self.start()

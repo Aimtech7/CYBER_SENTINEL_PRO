@@ -1,6 +1,6 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QWidget, QFormLayout, QLineEdit, QPushButton, QVBoxLayout, QLabel, QHBoxLayout
+    QWidget, QFormLayout, QLineEdit, QPushButton, QVBoxLayout, QLabel, QHBoxLayout, QCheckBox
 )
 from core.utils.secure_storage import save_secret, load_secret, save_setting, load_setting
 
@@ -53,13 +53,22 @@ class SettingsTab(QWidget):
         self.model_edit.setText(load_setting('openai_model', 'gpt-4o-mini'))
         form.addRow('OpenAI Model', self.model_edit)
 
+        self.hp_autostart = QCheckBox()
+        self.hp_autostart.setChecked(load_setting('honeypot_autostart', True))
+        form.addRow('Autostart Honeypot', self.hp_autostart)
+        self.hp_ports = QLineEdit(); self.hp_ports.setPlaceholderText('8080,2222,2323,4455')
+        self.hp_ports.setText(load_setting('honeypot_ports', '8080,2222,2323,4455'))
+        form.addRow('Honeypot Ports', self.hp_ports)
+
         root.addLayout(form)
 
         btns = QHBoxLayout()
         save_btn = QPushButton('Save Settings')
         test_btn = QPushButton('Test OpenAI')
+        test_all_btn = QPushButton('Test All APIs')
         btns.addWidget(save_btn)
         btns.addWidget(test_btn)
+        btns.addWidget(test_all_btn)
         root.addLayout(btns)
 
         self.status = QLabel('')
@@ -67,6 +76,7 @@ class SettingsTab(QWidget):
 
         save_btn.clicked.connect(self.save)
         test_btn.clicked.connect(self.test_openai)
+        test_all_btn.clicked.connect(self.test_all)
 
     def save(self):
         save_secret('openai_api_key', self.openai_edit.text().strip())
@@ -74,6 +84,8 @@ class SettingsTab(QWidget):
         save_secret('shodan_api_key', self.shodan_edit.text().strip())
         save_secret('abuseipdb_api_key', self.abuse_edit.text().strip())
         save_setting('openai_model', self.model_edit.text().strip() or 'gpt-4o-mini')
+        save_setting('honeypot_autostart', self.hp_autostart.isChecked())
+        save_setting('honeypot_ports', self.hp_ports.text().strip() or '8080,2222,2323,4455')
         self.status.setText('Settings saved securely.')
 
     def test_openai(self):
@@ -84,3 +96,16 @@ class SettingsTab(QWidget):
         else:
             self.status.setText('OpenAI test failed. Check API key and network.')
 
+    def test_all(self):
+        from core.threatintel.apis import vt_domain, shodan_ip, abuseipdb_ip
+        ok = []
+        vt = vt_domain('example.com')
+        if vt and 'data' in vt:
+            ok.append('VirusTotal')
+        sh = shodan_ip('8.8.8.8')
+        if sh and ('ip_str' in sh or 'data' in sh):
+            ok.append('Shodan')
+        ab = abuseipdb_ip('1.1.1.1')
+        if ab and ('data' in ab):
+            ok.append('AbuseIPDB')
+        self.status.setText('APIs OK: ' + ', '.join(ok) if ok else 'No APIs validated. Check keys.')
