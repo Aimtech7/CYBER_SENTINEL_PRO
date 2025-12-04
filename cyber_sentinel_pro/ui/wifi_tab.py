@@ -119,7 +119,15 @@ class WifiTab(QWidget):
         self.gw_btn.clicked.connect(self.get_gateway)
 
         if not has_aircrack_tools():
-            self.output.append('Aircrack-ng tools not detected. Advanced features require Linux/WSL with aircrack-ng.')
+            self.output.append('Aircrack-ng tools not detected. On Windows, install WSL and aircrack-ng in WSL. The app will attempt to run via WSL automatically.')
+            self.start_mon_btn.setEnabled(False)
+            self.stop_mon_btn.setEnabled(False)
+            self.cap_btn.setEnabled(False)
+            self.deauth_btn.setEnabled(False)
+            self.crack_btn.setEnabled(False)
+            self.auto_crack_btn.setEnabled(False)
+            self.crack_sel_btn.setEnabled(False)
+            self.auto_crack_sel_btn.setEnabled(False)
 
     def log(self, s: str):
         self.output.append(s)

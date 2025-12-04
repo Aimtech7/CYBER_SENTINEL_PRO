@@ -113,7 +113,14 @@ def has_aircrack_tools() -> bool:
     for tool in ['airmon-ng', 'airodump-ng', 'aireplay-ng', 'aircrack-ng']:
         if shutil.which(tool):
             return True
-    # Users may use WSL; attempt detection
+    # WSL detection: try 'wsl which'
+    if platform.system() == 'Windows' and shutil.which('wsl'):
+        try:
+            out = subprocess.run(['wsl', 'which', 'aircrack-ng'], capture_output=True)
+            if out.returncode == 0:
+                return True
+        except Exception:
+            pass
     return False
 
 

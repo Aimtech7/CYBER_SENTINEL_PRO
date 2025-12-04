@@ -1,5 +1,6 @@
 from PyQt6.QtCore import QThread, pyqtSignal, QTimer
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QCheckBox, QLineEdit, QMessageBox
+import json
 from core.automation.engine import AutomationEngine
 from core.utils.secure_storage import load_setting, save_setting
 
@@ -30,6 +31,16 @@ class AutomationTab(QWidget):
 
         self.logs = QTextEdit(); self.logs.setReadOnly(True)
         root.addWidget(self.logs)
+
+        cfg_row = QHBoxLayout()
+        self.task_sel = QLineEdit(); self.task_sel.setPlaceholderText('Task key (siem, iprep, suspip, fim, sandbox, risk, notify)')
+        self.cfg = QTextEdit(); self.cfg.setPlaceholderText('{"interval":5}')
+        save_cfg = QPushButton('Save Settings')
+        cfg_row.addWidget(self.task_sel)
+        cfg_row.addWidget(save_cfg)
+        root.addLayout(cfg_row)
+        root.addWidget(self.cfg)
+        save_cfg.clicked.connect(self.save_settings)
 
         self.timer = QTimer(self)
         self.timer.setInterval(1200)
@@ -76,3 +87,22 @@ class AutomationTab(QWidget):
                 for s in logs:
                     color = '#ff7676' if ('Error' in s or 'Anomalies' in s) else '#4db5ff'
                     self.logs.append(f"<span style='color:{color}'>{k}: {s}</span>")
+
+    def save_settings(self):
+        key = self.task_sel.text().strip()
+        if not key:
+            return
+        try:
+            data = json.loads(self.cfg.toPlainText() or '{}')
+        except Exception:
+            QMessageBox.warning(self, 'Invalid JSON', 'Settings must be valid JSON')
+            return
+        try:
+            t = self.engine.tasks.get(key)
+            if not t:
+                QMessageBox.warning(self, 'Unknown Task', f'No task "{key}"')
+                return
+            t.update_settings(data)
+            QMessageBox.information(self, 'Saved', f'Settings saved for {key}')
+        except Exception as e:
+            QMessageBox.warning(self, 'Error', str(e))

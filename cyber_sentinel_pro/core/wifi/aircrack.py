@@ -1,10 +1,14 @@
 import subprocess
 import shlex
+import platform
+import shutil
 from typing import Optional
 import time
 
 
 def run_cmd(cmd: str, on_line=None):
+    if platform.system() == 'Windows' and not _has_native_aircrack():
+        cmd = 'wsl ' + cmd
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     for line in proc.stdout:
         if on_line:
@@ -38,7 +42,10 @@ def crack_handshake(cap_file: str, wordlist: str, on_line=None) -> int:
 
 
 def capture_handshake_timeout(interface_mon: str, bssid: str, channel: int, output_cap: str, seconds: int, on_line=None) -> int:
-    proc = subprocess.Popen(shlex.split(f"sudo airodump-ng -c {channel} --bssid {bssid} -w {output_cap} {interface_mon}"), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    cmd = f"sudo airodump-ng -c {channel} --bssid {bssid} -w {output_cap} {interface_mon}"
+    if platform.system() == 'Windows' and not _has_native_aircrack():
+        cmd = 'wsl ' + cmd
+    proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     start = time.time()
     while True:
         line = proc.stdout.readline()
@@ -54,3 +61,10 @@ def capture_handshake_timeout(interface_mon: str, bssid: str, channel: int, outp
             break
     proc.wait()
     return proc.returncode
+
+
+def _has_native_aircrack() -> bool:
+    for tool in ['airmon-ng', 'airodump-ng', 'aireplay-ng', 'aircrack-ng']:
+        if shutil.which(tool):
+            return True
+    return False

@@ -11,6 +11,7 @@ STYLES_DIR = os.path.join(ASSETS_DIR, 'styles')
 # Lazy import of MainWindow to avoid circulars during packaging
 from ui.main_window import MainWindow
 from core.utils.secure_storage import load_setting
+from core.utils.workflow import schedule_self_test
 
 
 def load_stylesheet():
@@ -37,6 +38,10 @@ def main():
 
     window = MainWindow()
     window.show()
+    try:
+        schedule_self_test()
+    except Exception:
+        pass
     sys.exit(app.exec())
 
 

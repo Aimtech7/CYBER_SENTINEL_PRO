@@ -62,10 +62,12 @@ class MainWindow(QMainWindow):
             ('Malware Sandbox', 'malware.svg'),
             ('Honeypot', 'shield.svg'),
             ('Threat Intelligence', 'threat.svg'),
+            ('System Properties', 'settings.svg'),
             ('Endpoint Forensics', 'endpoint.svg'),
             ('Network Tools', 'tools.svg'),
             ('Report Builder', 'report.svg'),
             ('System Health', 'siem.svg'),
+            ('Dashboard', 'siem.svg'),
             ('Scheduler', 'clock.svg'),
             ('FAQ', 'help.svg'),
             ('Settings', 'settings.svg'),
@@ -90,10 +92,12 @@ class MainWindow(QMainWindow):
             'Malware Sandbox': MalwareTab(),
             'Honeypot': HoneypotTab(),
             'Threat Intelligence': ThreatIntelTab(),
+            'System Properties': self._lazy_sysprops_tab(),
             'Endpoint Forensics': EndpointTab(),
             'Network Tools': NetworkToolsTab(),
             'Report Builder': ReportTab(),
             'System Health': self._lazy_health_tab(),
+            'Dashboard': self._lazy_dashboard_tab(),
             'Scheduler': SchedulerTab(),
             'FAQ': FAQTab(),
             'Settings': SettingsTab(),
@@ -155,4 +159,18 @@ class MainWindow(QMainWindow):
             return HealthTab()
         except Exception as exc:
             return self._placeholder(f'Health tab failed to load: {exc}')
+
+    def _lazy_sysprops_tab(self):
+        try:
+            from .system_properties_tab import SystemPropertiesTab
+            return SystemPropertiesTab()
+        except Exception as exc:
+            return self._placeholder(f'System Properties failed to load: {exc}')
+
+    def _lazy_dashboard_tab(self):
+        try:
+            from .dashboard_tab import DashboardTab
+            return DashboardTab()
+        except Exception as exc:
+            return self._placeholder(f'Dashboard failed to load: {exc}')
 
