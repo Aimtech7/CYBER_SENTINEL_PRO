@@ -12,6 +12,7 @@ from .webscan_tab import WebScanTab
 from .nmap_tab import NmapTab
 from .siem_tab import SIEMTab
 from .malware_tab import MalwareTab
+from .honeypot_tab import HoneypotTab
 from .threatintel_tab import ThreatIntelTab
 from .settings_tab import SettingsTab
 
@@ -52,6 +53,7 @@ class MainWindow(QMainWindow):
             ('SIEM Analyzer', 'siem.svg'),
             ('Hashcat Controller', 'hashcat.svg'),
             ('Malware Sandbox', 'malware.svg'),
+            ('Honeypot', 'shield.svg'),
             ('Threat Intelligence', 'threat.svg'),
             ('Settings', 'settings.svg'),
         ]
@@ -72,6 +74,7 @@ class MainWindow(QMainWindow):
             'Hashcat Controller': self._placeholder('Hashcat Controller tab will load below...', HashcatTab=None),
             'Malware Sandbox': MalwareTab(),
             'Threat Intelligence': ThreatIntelTab(),
+            'Honeypot': HoneypotTab(),
             'Settings': SettingsTab(),
         }
 

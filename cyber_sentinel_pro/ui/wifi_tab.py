@@ -43,8 +43,12 @@ class WifiTab(QWidget):
         top.addWidget(QLabel('Interface'))
         top.addWidget(self.iface_combo)
         scan_btn = QPushButton('Scan Networks')
+        self.auto_btn = QPushButton('Auto Scan')
         scan_btn.clicked.connect(self.scan)
+        self.auto_btn.setCheckable(True)
+        self.auto_btn.toggled.connect(self.auto_scan_toggle)
         top.addWidget(scan_btn)
+        top.addWidget(self.auto_btn)
         root.addLayout(top)
 
         self.table = QTableWidget(0, 4)
@@ -68,11 +72,13 @@ class WifiTab(QWidget):
         self.cap_btn = QPushButton('Capture Handshake')
         self.deauth_btn = QPushButton('Deauth Attack')
         self.crack_btn = QPushButton('Crack (wordlist)')
+        self.auto_crack_btn = QPushButton('Auto Crack Handshake')
         actions.addWidget(self.start_mon_btn)
         actions.addWidget(self.stop_mon_btn)
         actions.addWidget(self.cap_btn)
         actions.addWidget(self.deauth_btn)
         actions.addWidget(self.crack_btn)
+        actions.addWidget(self.auto_crack_btn)
         root.addLayout(actions)
 
         self.output = QTextEdit(); self.output.setReadOnly(True); self.output.setPlaceholderText('Live terminal output...')
@@ -94,6 +100,7 @@ class WifiTab(QWidget):
         self.cap_btn.clicked.connect(self.capture)
         self.deauth_btn.clicked.connect(self.deauth)
         self.crack_btn.clicked.connect(self.crack)
+        self.auto_crack_btn.clicked.connect(self.auto_crack)
 
         if not has_aircrack_tools():
             self.output.append('Aircrack-ng tools not detected. Advanced features require Linux/WSL with aircrack-ng.')
@@ -104,6 +111,28 @@ class WifiTab(QWidget):
     def scan(self):
         iface = self.iface_combo.currentText() if self.iface_combo.count() else None
         nets = scan_networks(iface)
+        self.table.setRowCount(0)
+        for n in nets:
+            r = self.table.rowCount(); self.table.insertRow(r)
+            self.table.setItem(r, 0, QTableWidgetItem(n.get('ssid') or ''))
+            self.table.setItem(r, 1, QTableWidgetItem(n.get('bssid') or ''))
+            self.table.setItem(r, 2, QTableWidgetItem(str(n.get('signal'))))
+            self.table.setItem(r, 3, QTableWidgetItem(str(n.get('auth'))))
+
+    def auto_scan_toggle(self, on: bool):
+        if on:
+            self.output.append('Auto scanning started')
+            self.auto_thread = AutoScanWorker(self.iface_combo.currentText())
+            self.auto_thread.result.connect(self.update_scan_results)
+            self.auto_thread.start()
+        else:
+            try:
+                self.auto_thread.stop()
+            except Exception:
+                pass
+            self.output.append('Auto scanning stopped')
+
+    def update_scan_results(self, nets):
         self.table.setRowCount(0)
         for n in nets:
             r = self.table.rowCount(); self.table.insertRow(r)
@@ -170,3 +199,46 @@ class WifiTab(QWidget):
             return
         self._start_worker(aircrack.crack_handshake, self.cap_path, self.wordlist_path)
 
+    def auto_crack(self):
+        mon = self.mon_iface.text().strip()
+        bssid = self.bssid_edit.text().strip()
+        ch = self.channel_spin.value()
+        if not (mon and bssid and self.wordlist_path and self.cap_path):
+            self.log('Monitor iface, BSSID, channel, capture output, and wordlist are required.')
+            return
+        self.worker = AutoCrackWorker(mon, bssid, ch, self.cap_path, self.wordlist_path)
+        self.worker.line.connect(self.log)
+        self.worker.done.connect(lambda c: self.log(f'Auto crack finished {c}'))
+        self.worker.start()
+
+class AutoScanWorker(QThread):
+    result = pyqtSignal(list)
+    def __init__(self, iface):
+        super().__init__()
+        self.iface = iface
+        self._stop = False
+    def run(self):
+        while not self._stop:
+            nets = scan_networks(self.iface)
+            self.result.emit(nets)
+            self.msleep(3000)
+    def stop(self):
+        self._stop = True
+
+class AutoCrackWorker(QThread):
+    line = pyqtSignal(str)
+    done = pyqtSignal(int)
+    def __init__(self, mon, bssid, ch, cap_path, wordlist):
+        super().__init__()
+        self.mon = mon
+        self.bssid = bssid
+        self.ch = ch
+        self.cap_path = cap_path
+        self.wordlist = wordlist
+    def run(self):
+        def emit(s):
+            self.line.emit(s)
+        aircrack.deauth_attack(self.mon, self.bssid, None, 10, on_line=emit)
+        aircrack.capture_handshake_timeout(self.mon, self.bssid, self.ch, self.cap_path, 30, on_line=emit)
+        code = aircrack.crack_handshake(self.cap_path, self.wordlist, on_line=emit)
+        self.done.emit(code)
