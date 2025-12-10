@@ -1,6 +1,8 @@
 import psutil
+import time
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QPushButton, QLineEdit, QMessageBox
+from core.utils.secure_storage import load_setting, append_audit
 
 
 class SystemPropertiesTab(QWidget):
@@ -60,11 +62,18 @@ class SystemPropertiesTab(QWidget):
         pid = self._pid()
         if not pid:
             return
+        if load_setting('safe_mode', True):
+            QMessageBox.warning(self, 'Restricted', 'Safe Mode enabled')
+            return
+        if (load_setting('role', 'admin') or '').lower() != 'admin':
+            QMessageBox.warning(self, 'Restricted', 'Admin role required')
+            return
         ok = QMessageBox.question(self, 'Confirm', f'Terminate PID {pid}?')
         if ok != QMessageBox.StandardButton.Yes:
             return
         try:
             psutil.Process(pid).terminate()
+            append_audit({'ts': time.time(), 'action': 'terminate', 'pid': pid})
         except Exception:
             pass
 
@@ -72,11 +81,18 @@ class SystemPropertiesTab(QWidget):
         pid = self._pid()
         if not pid:
             return
+        if load_setting('safe_mode', True):
+            QMessageBox.warning(self, 'Restricted', 'Safe Mode enabled')
+            return
+        if (load_setting('role', 'admin') or '').lower() != 'admin':
+            QMessageBox.warning(self, 'Restricted', 'Admin role required')
+            return
         ok = QMessageBox.question(self, 'Confirm', f'Suspend PID {pid}?')
         if ok != QMessageBox.StandardButton.Yes:
             return
         try:
             psutil.Process(pid).suspend()
+            append_audit({'ts': time.time(), 'action': 'suspend', 'pid': pid})
         except Exception:
             pass
 
@@ -84,10 +100,17 @@ class SystemPropertiesTab(QWidget):
         pid = self._pid()
         if not pid:
             return
+        if load_setting('safe_mode', True):
+            QMessageBox.warning(self, 'Restricted', 'Safe Mode enabled')
+            return
+        if (load_setting('role', 'admin') or '').lower() != 'admin':
+            QMessageBox.warning(self, 'Restricted', 'Admin role required')
+            return
         ok = QMessageBox.question(self, 'Confirm', f'Resume PID {pid}?')
         if ok != QMessageBox.StandardButton.Yes:
             return
         try:
             psutil.Process(pid).resume()
+            append_audit({'ts': time.time(), 'action': 'resume', 'pid': pid})
         except Exception:
             pass

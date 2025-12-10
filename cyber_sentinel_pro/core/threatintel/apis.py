@@ -75,3 +75,52 @@ def otx_general(ioc_type: str, value: str) -> Optional[Dict]:
         return r.json()
     except Exception:
         return None
+
+
+def otx_passive_dns_domain(domain: str) -> Optional[Dict]:
+    key = load_secret('otx_api_key')
+    headers = {'X-OTX-API-KEY': key} if key else {}
+    url = f'https://otx.alienvault.com/api/v1/indicators/domain/{domain}/passive_dns'
+    try:
+        r = requests.get(url, headers=headers, timeout=20)
+        return r.json()
+    except Exception:
+        return None
+
+
+def whois_rdap(domain: str) -> Optional[Dict]:
+    urls = [
+        f'https://rdap.org/domain/{domain}',
+        f'https://rdap.verisign.com/com/v1/domain/{domain}',
+    ]
+    for u in urls:
+        try:
+            r = requests.get(u, timeout=20)
+            if r.status_code == 200:
+                return r.json()
+        except Exception:
+            continue
+    return None
+
+
+def malwarebazaar_hash(hash_val: str) -> Optional[Dict]:
+    try:
+        r = requests.post('https://mb-api.abuse.ch/api/v1/', data={'query': 'hash', 'hash': hash_val}, timeout=20)
+        return r.json()
+    except Exception:
+        return None
+
+
+def misp_search(value: str) -> Optional[Dict]:
+    base = load_secret('misp_url') or ''
+    key = load_secret('misp_api_key') or ''
+    if not base or not key:
+        return None
+    url = base.rstrip('/') + '/attributes/restSearch'
+    headers = {'Authorization': key, 'Accept': 'application/json', 'Content-Type': 'application/json'}
+    payload = {'returnFormat': 'json', 'value': value, 'type': 'all'}
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=30)
+        return r.json()
+    except Exception:
+        return None

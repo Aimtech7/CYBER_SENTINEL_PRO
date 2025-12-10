@@ -3,8 +3,11 @@ import threading
 import json
 import os
 import queue
+import requests
+import smtplib
+from email.message import EmailMessage
 from typing import Optional, Dict
-from core.utils.secure_storage import load_setting, save_setting
+from core.utils.secure_storage import load_setting, save_setting, APP_DIR, load_secret
 try:
     from core.siem.analyzer import analyze_log_line
 except Exception:
@@ -29,6 +32,11 @@ class AutomationTask:
     def update_settings(self, s: Dict):
         save_setting(self.settings_key, s)
 
+    def _log_path(self) -> str:
+        d = os.path.join(APP_DIR, 'logs')
+        os.makedirs(d, exist_ok=True)
+        return os.path.join(d, f"{self.settings_key}.log")
+
     def start(self):
         if self.running:
             return
@@ -42,6 +50,45 @@ class AutomationTask:
     def _emit(self, s: str):
         try:
             self.log_q.put_nowait(s)
+            ts = time.time()
+            with open(self._log_path(), 'a', encoding='utf-8') as fh:
+                fh.write(f"{int(ts)},{s}\n")
+            if self.settings().get('notify', False):
+                if ('Anomalies' in s) or ('Risk' in s) or ('Summary' in s):
+                    self._notify(s)
+        except Exception:
+            pass
+
+    def _notify(self, text: str):
+        try:
+            wh = load_secret('slack_webhook_url') or load_setting('slack_webhook_url', '')
+            if wh:
+                try:
+                    requests.post(wh, json={'text': text}, timeout=10)
+                except Exception:
+                    pass
+            smtp_host = load_setting('smtp_host', '')
+            smtp_port = int(load_setting('smtp_port', 0) or 0)
+            smtp_user = load_setting('smtp_user', '')
+            smtp_pass = load_setting('smtp_pass', '')
+            smtp_to = load_setting('smtp_to', '')
+            if smtp_host and smtp_to:
+                try:
+                    msg = EmailMessage()
+                    msg['Subject'] = f"Cyber Sentinel Alert: {self.name}"
+                    msg['From'] = smtp_user or 'alerts@cybersentinel.local'
+                    msg['To'] = smtp_to
+                    msg.set_content(text)
+                    with smtplib.SMTP(smtp_host, smtp_port or 25, timeout=10) as s:
+                        if smtp_user and smtp_pass:
+                            try:
+                                s.starttls()
+                            except Exception:
+                                pass
+                            s.login(smtp_user, smtp_pass)
+                        s.send_message(msg)
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -172,3 +219,24 @@ class AutomationEngine:
         except Exception:
             pass
         return out
+
+    def export_logs(self, key: str, out_csv: str) -> bool:
+        t = self.tasks.get(key)
+        if not t:
+            return False
+        try:
+            p = t._log_path()
+            if not os.path.exists(p):
+                with open(out_csv, 'w', encoding='utf-8') as fw:
+                    fw.write('timestamp,message\n')
+                return True
+            with open(p, 'r', encoding='utf-8') as fh:
+                lines = fh.readlines()
+            with open(out_csv, 'w', encoding='utf-8') as fw:
+                fw.write('timestamp,message\n')
+                for ln in lines:
+                    if ',' in ln:
+                        fw.write(ln)
+            return True
+        except Exception:
+            return False

@@ -15,6 +15,7 @@ from cryptography.hazmat.backends import default_backend
 APP_DIR = os.path.join(os.path.expanduser('~'), '.cyber_sentinel_pro')
 SETTINGS_PATH = os.path.join(APP_DIR, 'settings.json')
 BACKUP_PATH = os.path.join(APP_DIR, 'settings.bak')
+AUDIT_LOG_PATH = os.path.join(APP_DIR, 'audit.log')
 
 
 def _ensure_app_dir():
@@ -186,6 +187,15 @@ def load_setting(name: str, default=None):
             return data.get(name, default)
         except Exception:
             return default
+
+
+def append_audit(event: dict):
+    _ensure_app_dir()
+    try:
+        with open(AUDIT_LOG_PATH, 'a', encoding='utf-8') as fh:
+            fh.write(json.dumps(event, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
 
 
 def save_multiple_secrets(payload: dict) -> None:

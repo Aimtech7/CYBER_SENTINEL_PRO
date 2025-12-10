@@ -1,5 +1,7 @@
 from PyQt6.QtCore import QThread, pyqtSignal, QTimer
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QCheckBox, QLineEdit, QMessageBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QCheckBox, QLineEdit, QMessageBox, QFileDialog
+import json
+import time
 import json
 from core.automation.engine import AutomationEngine
 from core.utils.secure_storage import load_setting, save_setting
@@ -29,6 +31,17 @@ class AutomationTab(QWidget):
         for k, row in self.tasks.items():
             root.addLayout(row['layout'])
 
+        settings_row = QHBoxLayout()
+        self.task_sel = QLineEdit(); self.task_sel.setPlaceholderText('Task key (siem, iprep, suspip, fim, sandbox, risk, notify)')
+        self.cfg = QTextEdit(); self.cfg.setPlaceholderText('{ }')
+        save_btn = QPushButton('Save Settings')
+        export_btn = QPushButton('Export Logs')
+        settings_row.addWidget(self.task_sel)
+        settings_row.addWidget(save_btn)
+        settings_row.addWidget(export_btn)
+        root.addLayout(settings_row)
+        root.addWidget(self.cfg)
+
         self.logs = QTextEdit(); self.logs.setReadOnly(True)
         root.addWidget(self.logs)
 
@@ -46,6 +59,9 @@ class AutomationTab(QWidget):
         self.timer.setInterval(1200)
         self.timer.timeout.connect(self.refresh_logs)
         self.timer.start()
+
+        save_btn.clicked.connect(self.save_settings)
+        export_btn.clicked.connect(self.export_logs)
 
     def _task_row(self, name: str):
         h = QHBoxLayout()
@@ -82,11 +98,48 @@ class AutomationTab(QWidget):
     def refresh_logs(self):
         for k in self.tasks.keys():
             logs = self.engine.logs(k)
+            try:
+                lr = self.engine.tasks[k].last_run
+                if lr:
+                    self.tasks[k]['last'].setText('Last: ' + time.strftime('%H:%M:%S', time.localtime(lr)))
+            except Exception:
+                pass
             if logs:
-                self.tasks[k]['last'].setText('Last: updated')
                 for s in logs:
                     color = '#ff7676' if ('Error' in s or 'Anomalies' in s) else '#4db5ff'
                     self.logs.append(f"<span style='color:{color}'>{k}: {s}</span>")
+
+    def save_settings(self):
+        key = self.task_sel.text().strip()
+        if not key:
+            return
+        try:
+            data = json.loads(self.cfg.toPlainText() or '{}')
+        except Exception:
+            QMessageBox.warning(self, 'Invalid JSON', 'Settings must be valid JSON')
+            return
+        try:
+            t = self.engine.tasks.get(key)
+            if not t:
+                QMessageBox.warning(self, 'Unknown Task', f'No task "{key}"')
+                return
+            t.update_settings(data)
+            QMessageBox.information(self, 'Saved', f'Settings saved for {key}')
+        except Exception as e:
+            QMessageBox.warning(self, 'Error', str(e))
+
+    def export_logs(self):
+        key = self.task_sel.text().strip()
+        if not key:
+            return
+        path, _ = QFileDialog.getSaveFileName(self, 'Export Logs', '', 'CSV (*.csv)')
+        if not path:
+            return
+        ok = self.engine.export_logs(key, path)
+        if ok:
+            QMessageBox.information(self, 'Exported', f'Logs exported for {key}')
+        else:
+            QMessageBox.warning(self, 'Error', 'Failed to export logs')
 
     def save_settings(self):
         key = self.task_sel.text().strip()

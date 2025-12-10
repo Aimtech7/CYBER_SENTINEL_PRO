@@ -1,5 +1,5 @@
 import psutil
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem, QHBoxLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem, QHBoxLayout, QTextEdit, QProgressBar
 from core.utils.secure_storage import load_setting, save_setting
 
 
@@ -27,6 +27,12 @@ class EndpointTab(QWidget):
         self.table.setHorizontalHeaderLabels(['PID', 'Name', 'CPU %', 'Memory %'])
         root.addWidget(self.table)
 
+        self.log_view = QTextEdit(); self.log_view.setReadOnly(True)
+        root.addWidget(self.log_view)
+
+        self.loader = QProgressBar(); self.loader.setRange(0,0); self.loader.hide()
+        root.addWidget(self.loader)
+
         refresh_btn.clicked.connect(self.refresh)
         save_base_btn.clicked.connect(self.save_baseline)
         compare_btn.clicked.connect(self.compare_baseline)
@@ -34,13 +40,14 @@ class EndpointTab(QWidget):
         self.refresh()
 
     def refresh(self):
-        self.table.setRowCount(0)
+        self.loader.show(); self.table.setRowCount(0)
         for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
             i = self.table.rowCount(); self.table.insertRow(i)
             self.table.setItem(i, 0, QTableWidgetItem(str(p.info.get('pid'))))
             self.table.setItem(i, 1, QTableWidgetItem(p.info.get('name') or ''))
             self.table.setItem(i, 2, QTableWidgetItem(str(p.info.get('cpu_percent'))))
             self.table.setItem(i, 3, QTableWidgetItem(f"{(p.info.get('memory_percent') or 0):.2f}"))
+        self.loader.hide()
 
     def save_baseline(self):
         names = []
@@ -61,12 +68,14 @@ class EndpointTab(QWidget):
         for nm in new:
             i = self.table.rowCount(); self.table.insertRow(i)
             self.table.setItem(i, 0, QTableWidgetItem(''))
-            self.table.setItem(i, 1, QTableWidgetItem(nm + ' (NEW)'))
+            it = QTableWidgetItem(nm + ' (NEW)'); self.table.setItem(i, 1, it)
             self.table.setItem(i, 2, QTableWidgetItem(''))
             self.table.setItem(i, 3, QTableWidgetItem(''))
+            self.log_view.append("<span style='color:#e0a800'>[WARNING] New process: " + nm + "</span>")
         for nm in missing:
             i = self.table.rowCount(); self.table.insertRow(i)
             self.table.setItem(i, 0, QTableWidgetItem(''))
-            self.table.setItem(i, 1, QTableWidgetItem(nm + ' (MISSING)'))
+            it = QTableWidgetItem(nm + ' (MISSING)'); self.table.setItem(i, 1, it)
             self.table.setItem(i, 2, QTableWidgetItem(''))
             self.table.setItem(i, 3, QTableWidgetItem(''))
+            self.log_view.append("<span style='color:#9bd1ff'>[INFO] Missing from baseline: " + nm + "</span>")

@@ -4,7 +4,7 @@ from collections import deque
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem,
-    QComboBox, QTextEdit, QFileDialog
+    QComboBox, QTextEdit, QFileDialog, QProgressBar
 )
 import pyqtgraph as pg
 import psutil
@@ -95,6 +95,12 @@ class SnifferTab(QWidget):
         self.table.setHorizontalHeaderLabels(['Time', 'Proto', 'Src', 'Dst', 'Len'])
         root.addWidget(self.table)
 
+        self.events_view = QTextEdit(); self.events_view.setReadOnly(True)
+        root.addWidget(self.events_view)
+
+        self.loader = QProgressBar(); self.loader.setRange(0, 0); self.loader.hide()
+        root.addWidget(self.loader)
+
         bottom = QHBoxLayout()
         self.hex_view = QTextEdit(); self.hex_view.setReadOnly(True)
         self.ascii_view = QTextEdit(); self.ascii_view.setReadOnly(True)
@@ -128,6 +134,7 @@ class SnifferTab(QWidget):
         if not iface:
             self._status('Enter an interface name.')
             return
+        self.loader.show()
         self.worker = SnifferWorker(iface, bpf)
         self.worker.packet.connect(self.on_packet)
         self.worker.finished.connect(lambda: self._status('Capture stopped'))
@@ -137,6 +144,7 @@ class SnifferTab(QWidget):
     def stop(self):
         if self.worker:
             self.worker.stop()
+        self.loader.hide()
 
     def export(self):
         if not self.worker:
@@ -202,6 +210,17 @@ class SnifferTab(QWidget):
         self.ticks += 1
         self.rate_x.append(self.ticks)
         self.curve.setData(list(self.rate_x), list(self.rate_buf))
+        tech = ''
+        if cap.proto in ('DNS', 'HTTP'):
+            tech = 'T1071'
+        sev = 'info'
+        if cap.proto in ('DNS', 'HTTP'):
+            sev = 'warning'
+        color = {'info': '#9bd1ff', 'warning': '#e0a800', 'danger': '#ff4d4d'}[sev]
+        msg = f"[{sev.upper()}] {cap.proto} {cap.src} -> {cap.dst} len={cap.length}"
+        if tech:
+            msg += f" MITRE:{tech}"
+        self.events_view.append(f"<span style='color:{color}'>" + msg + "</span>")
 
     def show_packet(self, row: int, col: int):
         try:

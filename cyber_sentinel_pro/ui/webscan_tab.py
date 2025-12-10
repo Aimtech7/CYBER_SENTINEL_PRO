@@ -1,7 +1,7 @@
 import os
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog, QProgressBar
 )
 from core.webscan.webscanner import WebScanner
 from core.utils.ai_client import summarize
@@ -52,6 +52,12 @@ class WebScanTab(QWidget):
         self.output = QTextEdit(); self.output.setReadOnly(True)
         root.addWidget(self.output)
 
+        self.log_view = QTextEdit(); self.log_view.setReadOnly(True)
+        root.addWidget(self.log_view)
+
+        self.loader = QProgressBar(); self.loader.setRange(0, 0); self.loader.hide()
+        root.addWidget(self.loader)
+
         self.scanner = None
 
         start_btn.clicked.connect(self.start_scan)
@@ -63,6 +69,7 @@ class WebScanTab(QWidget):
         if not url:
             self.output.append('Enter a base URL')
             return
+        self.loader.show()
         self.worker = WebScanWorker(url)
         self.worker.done.connect(self.on_done)
         self.worker.start()
@@ -75,12 +82,21 @@ class WebScanTab(QWidget):
             self.output.append(f"{f['type']}: {f['url']} - {f['detail']}")
             if f.get('mitre_technique'):
                 self.output.append(f"  MITRE: {f['mitre_technique']}")
+            sev = 'info'
+            t = f.get('type')
+            if t in ('sql_injection', 'xss_reflected'):
+                sev = 'danger'
+            elif t in ('dir_found',):
+                sev = 'warning'
+            color = {'info': '#9bd1ff', 'warning': '#e0a800', 'danger': '#ff4d4d'}[sev]
+            self.log_view.append(f"<span style='color:{color}'>[{sev.upper()}] {f['type']} - {f['url']} - {f['detail']}</span>")
         text = '\n'.join([f"{f['type']} {f.get('mitre_technique','')} {f['url']} {f['detail']}" for f in enriched])
         ai = summarize('WebScan Report', text)
         if ai:
             self.output.append('\nAI Summary:\n' + ai)
         else:
             self.output.append('\nAI Summary unavailable (no key or error).')
+        self.loader.hide()
 
     def export_html(self):
         if not self.scanner:

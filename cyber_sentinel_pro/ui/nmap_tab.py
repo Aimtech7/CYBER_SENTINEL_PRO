@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox, QTableWidget, QTableWidgetItem, QFileDialog
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox, QTableWidget, QTableWidgetItem, QFileDialog, QTextEdit, QProgressBar
 )
 import pyqtgraph as pg
 from PyQt6.QtCore import QThread, pyqtSignal
@@ -45,9 +45,15 @@ class NmapTab(QWidget):
         self.table.setHorizontalHeaderLabels(['Host', 'Port', 'State', 'Name', 'Product', 'Version'])
         root.addWidget(self.table)
 
+        self.log_view = QTextEdit(); self.log_view.setReadOnly(True)
+        root.addWidget(self.log_view)
+
         self.chart = pg.PlotWidget()
         self.chart.setBackground('#0f1320')
         root.addWidget(self.chart)
+
+        self.loader = QProgressBar(); self.loader.setRange(0,0); self.loader.hide()
+        root.addWidget(self.loader)
 
         start_btn.clicked.connect(self.run_scan)
         export_btn.clicked.connect(self.export_csv)
@@ -57,6 +63,7 @@ class NmapTab(QWidget):
         p = self.profile_combo.currentText()
         if not t:
             return
+        self.loader.show()
         self.worker = NmapWorker(t, p)
         self.worker.done.connect(self.on_done)
         self.worker.start()
@@ -76,11 +83,25 @@ class NmapTab(QWidget):
             self.table.setItem(i, 4, QTableWidgetItem(r.get('product') or ''))
             self.table.setItem(i, 5, QTableWidgetItem(r.get('version') or ''))
             port_counts[r['port']] = port_counts.get(r['port'], 0) + 1
+            sev = 'info'; tech = ''
+            port = int(r['port'])
+            if port in (22, 23):
+                sev = 'warning'; tech = 'T1110'
+            elif port in (445, 3389):
+                sev = 'danger'; tech = 'T1021'
+            elif port in (80, 443):
+                sev = 'info'; tech = 'T1071'
+            color = {'info':'#9bd1ff','warning':'#e0a800','danger':'#ff4d4d'}[sev]
+            msg = f"[{sev.upper()}] {r['host']}:{port} {r['state']} {r.get('name') or ''}"
+            if tech:
+                msg += f" MITRE:{tech}"
+            self.log_view.append(f"<span style='color:{color}'>" + msg + "</span>")
         xs = list(port_counts.keys())
         ys = list(port_counts.values())
         self.chart.clear()
         bg = pg.BarGraphItem(x=xs, height=ys, width=0.8, brush=pg.mkBrush('#4db5ff'))
         self.chart.addItem(bg)
+        self.loader.hide()
 
     def export_csv(self):
         if not self.res:
@@ -96,4 +117,3 @@ class NmapTab(QWidget):
             w.writerow(['Host', 'Port', 'State', 'Name', 'Product', 'Version'])
             for r in rows:
                 w.writerow([r['host'], r['port'], r['state'], r.get('name',''), r.get('product',''), r.get('version','')])
-

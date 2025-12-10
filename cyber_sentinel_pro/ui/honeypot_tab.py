@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QThread, pyqtSignal
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QLineEdit
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QLineEdit, QProgressBar
 from core.honeypot.honeypot import HoneypotManager
 from core.utils.secure_storage import load_setting
 
@@ -48,16 +48,39 @@ class HoneypotTab(QWidget):
         self.output = QTextEdit(); self.output.setReadOnly(True)
         root.addWidget(self.output)
 
+        self.log_view = QTextEdit(); self.log_view.setReadOnly(True)
+        root.addWidget(self.log_view)
+
+        self.loader = QProgressBar(); self.loader.setRange(0,0); self.loader.hide()
+        root.addWidget(self.loader)
+
         start_btn.clicked.connect(self.start)
         stop_btn.clicked.connect(self.stop)
 
     def start(self):
         host = self.host_edit.text().strip() or '0.0.0.0'
         ports = [int(x.strip()) for x in self.ports_edit.text().split(',') if x.strip().isdigit()]
+        self.loader.show()
         self.worker = HoneypotWorker(host, ports)
-        self.worker.event.connect(lambda e: self.output.append(str(e)))
+        def on_event(e: dict):
+            self.output.append(str(e))
+            p = int(e.get('port') or 0)
+            sev = 'info'; tech = ''
+            if p in (22, 23):
+                sev = 'warning'; tech = 'T1110'
+            elif p in (445, 3389):
+                sev = 'danger'; tech = 'T1021'
+            elif p in (80, 443):
+                sev = 'info'; tech = 'T1071'
+            color = {'info':'#9bd1ff','warning':'#e0a800','danger':'#ff4d4d'}[sev]
+            msg = f"[{sev.upper()}] connection on {p} from {e.get('src') or ''}"
+            if tech:
+                msg += f" MITRE:{tech}"
+            self.log_view.append(f"<span style='color:{color}'>" + msg + "</span>")
+        self.worker.event.connect(on_event)
         self.worker.start()
         self.output.append('Honeypot started')
+        self.loader.hide()
 
     def stop(self):
         if self.worker:

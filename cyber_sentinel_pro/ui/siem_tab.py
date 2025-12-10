@@ -1,6 +1,6 @@
 import os
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QFileDialog, QTableWidget, QTableWidgetItem, QLineEdit
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QFileDialog, QTableWidget, QTableWidgetItem, QLineEdit, QProgressBar
 )
 import pyqtgraph as pg
 from core.siem.analyzer import parse_lines
@@ -43,9 +43,16 @@ class SIEMTab(QWidget):
         self.log_view = QTextEdit(); self.log_view.setReadOnly(True)
         root.addWidget(self.log_view)
 
+        self.loader = QProgressBar(); self.loader.setRange(0, 0); self.loader.hide()
+        root.addWidget(self.loader)
+
         load_btn.clicked.connect(self.load)
         analyze_btn.clicked.connect(self.analyze)
         search_btn.clicked.connect(self.search)
+
+        export_btn = QPushButton('Export Findings CSV')
+        root.addWidget(export_btn)
+        export_btn.clicked.connect(self.export_csv)
 
     def load(self):
         path, _ = QFileDialog.getOpenFileName(self, 'Open Log File', os.path.expanduser('~'), 'Text (*.log *.txt);;All (*)')
@@ -58,6 +65,7 @@ class SIEMTab(QWidget):
         if not self.lines:
             self.output.append('Load a log file first.')
             return
+        self.loader.show()
         res = parse_lines(self.lines)
         self.table.setRowCount(0)
         enriched = enrich_findings(res['findings'])
@@ -67,6 +75,7 @@ class SIEMTab(QWidget):
             self.table.setItem(i, 1, QTableWidgetItem(f['detail']))
             if f.get('mitre_technique'):
                 self.output.append(f"MITRE: {f['mitre_technique']} - {f['detail']}")
+                self.log_view.append(f"<span style='color:#e0a800'>[MITRE] {f['mitre_technique']} - {f['detail']}</span>")
         xs = [int(k) for k in res['status_counts'].keys()]
         ys = list(res['status_counts'].values())
         self.chart.clear()
@@ -78,6 +87,23 @@ class SIEMTab(QWidget):
             self.output.append('AI Summary:\n' + ai)
         else:
             self.output.append('AI Summary unavailable.')
+        self.loader.hide()
+
+    def export_csv(self):
+        if self.table.rowCount() == 0:
+            self.output.append('Analyze logs first.')
+            return
+        path, _ = QFileDialog.getSaveFileName(self, 'Export Findings CSV', '', 'CSV (*.csv)')
+        if not path:
+            return
+        import csv
+        with open(path, 'w', newline='', encoding='utf-8') as fh:
+            w = csv.writer(fh)
+            w.writerow(['Type', 'Detail'])
+            for r in range(self.table.rowCount()):
+                t = self.table.item(r, 0).text()
+                d = self.table.item(r, 1).text()
+                w.writerow([t, d])
 
     def search(self):
         pat = self.search_edit.text().strip()

@@ -57,10 +57,20 @@ def _select_model(client: OpenAI) -> str:
     return _CACHED_MODEL
 
 
+def _offline_summary(title: str, content: str) -> str:
+    txt = (content or '')
+    low = txt.lower()
+    flags = ['error', 'fail', 'denied', 'malicious', 'suspicious']
+    hits = [w for w in flags if w in low]
+    lines = [l.strip() for l in txt.splitlines() if l.strip()]
+    head = '; '.join(lines[:3])
+    return f"{title}: {', '.join(hits) or 'no critical flags'}; top: {head}"
+
+
 def summarize(title: str, content: str, max_tokens: int = 400) -> Optional[str]:
     client = get_client()
     if not client:
-        return None
+        return _offline_summary(title, content)
     prompt = f"You are an expert cybersecurity analyst. Title: {title}. Analyze the following data and produce a concise security summary with key findings, risks, and recommendations.\n\n=== Data Start ===\n{content}\n=== Data End ==="
     model = _select_model(client)
     for attempt in range(3):
@@ -77,7 +87,7 @@ def summarize(title: str, content: str, max_tokens: int = 400) -> Optional[str]:
             return resp.choices[0].message.content
         except Exception:
             time.sleep(0.8 * (attempt + 1))
-    return None
+    return _offline_summary(title, content)
 
 
 def probe() -> Tuple[bool, str]:
